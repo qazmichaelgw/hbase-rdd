@@ -35,7 +35,7 @@ import org.json4s.jackson.JsonMethods._
  * Adds implicit methods to SparkContext to read
  * from HBase sources.
  */
-trait HBaseReadSupport {
+trait HBaseReadSupport{
   implicit def toHBaseSC(sc: SparkContext): HBaseSC = new HBaseSC(sc)
 
   implicit val byteArrayReader = new Reads[Array[Byte]] {
@@ -48,6 +48,17 @@ trait HBaseReadSupport {
 
   implicit val jsonReader = new Reads[JValue] {
     def read(data: Array[Byte]) = parse(new String(data))
+  }
+
+  implicit val intReader = new Reads[Int] {
+    def read(data: Array[Byte]) = {
+      var n = 0
+      for(byte <- data) {
+        n = (n << 8)
+        n ^= byte & 0xFF
+      }
+      n
+    }
   }
 }
 
@@ -154,5 +165,4 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
         case (key, row) =>
           Bytes.toString(key.get) -> row
       }
-
 }

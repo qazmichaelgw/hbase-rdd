@@ -1,4 +1,6 @@
 scalastyle-config.xml
+out/
+META-INF/
 target/
 project/project/
 project/target/

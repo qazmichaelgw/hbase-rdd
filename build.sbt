@@ -27,10 +27,12 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "1.2.0" % "provided",
-  "org.apache.hbase" % "hbase-common" % "0.98.6-cdh5.3.1" % "provided",
-  "org.apache.hbase" % "hbase-client" % "0.98.6-cdh5.3.1" % "provided",
-  "org.apache.hbase" % "hbase-server" % "0.98.6-cdh5.3.1" % "provided",
-  "org.json4s" %% "json4s-jackson" % "3.2.11" % "provided"
+  "org.apache.hbase" % "hbase-client" % "0.98.4-hadoop2" % "compile",
+  "org.apache.hbase" % "hbase-common" % "0.98.4-hadoop2" % "compile",
+  "org.apache.hbase" % "hbase-server" % "0.98.4-hadoop2" % "compile",
+  "org.apache.hbase" % "hbase-hadoop-compat" % "0.98.9-hadoop2" exclude("javax.servlet", "servlet-api"),
+  "org.apache.hbase" % "hbase-hadoop2-compat" % "0.98.9-hadoop2" exclude("javax.servlet", "servlet-api"),
+  "org.json4s" %% "json4s-jackson" % "3.2.11"
 )
 
 publishMavenStyle := true

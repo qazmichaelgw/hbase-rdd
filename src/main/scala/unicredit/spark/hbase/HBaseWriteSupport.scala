@@ -33,7 +33,8 @@ import org.apache.spark.SparkContext._
  * Adds implicit methods to `RDD[(String, Map[String, A])]` or
  * `RDD[(String, Map[String, A])]` to write to HBase sources.
  */
-trait HBaseWriteSupport {
+//case class MyData(id: Int, prg: Int, name: String)
+trait HBaseWriteSupport{
   implicit def toHBaseRDDSimple[A](rdd: RDD[(String, Map[String, A])]): HBaseRDDSimple[A] = new HBaseRDDSimple(rdd)
   implicit def toHBaseRDD[A](rdd: RDD[(String, Map[String, Map[String, A]])]): HBaseRDD[A] = new HBaseRDD(rdd)
 
@@ -48,6 +49,27 @@ trait HBaseWriteSupport {
   implicit val jsonWriter = new Writes[JValue] {
     def write(data: JValue) = compact(data).getBytes
   }
+
+  implicit val intWriter = new Writes[Int] {
+    def write(data: Int) = {
+      var value = data
+      val b = new Array[scala.Byte](4)
+      for (i <- 3 to (1, -1)) {
+        b(i) = value.byteValue
+        value = value >>> 8
+      }
+      b(0) = value.byteValue
+      b
+    }
+  }
+
+//  implicit val MyDataWriter = new Writes[MyData] {
+//    def write(data: MyData) = Seq(
+//      Some(Bytes.toBytes(data.id)),
+//      Some(Bytes.toBytes(data.prg)),
+//      Some(Bytes.toBytes(data.name))
+//    ).mkString(",")
+//  }
 }
 
 sealed abstract class HBaseWriteHelpers[A] {
