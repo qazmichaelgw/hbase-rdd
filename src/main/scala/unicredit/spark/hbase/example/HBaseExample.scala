@@ -2,6 +2,11 @@ package unicredit.spark.hbase.example
 
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.hbase.HBaseConfiguration
+import org.apache.hadoop.hbase.client.{Scan, Result}
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable
+import org.apache.hadoop.hbase.mapreduce.{IdentityTableMapper, TableMapReduceUtil, TableInputFormat}
+import org.apache.hadoop.hbase.util.Bytes
+import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import unicredit.spark.hbase._
@@ -12,7 +17,7 @@ import scala.collection.immutable.HashMap
  * Created by root on 6/24/15.
  */
 
-object HBaseExample {
+object HBaseExample{
   def main(args: Array[String]): Unit = {
     val master = args.filter(x => x.contains("master"))
     val addr = master(0).toString.split("=")(1)
@@ -36,10 +41,9 @@ object HBaseExample {
     // (String, Map[String, Map[String, A]])
     val cfs = Set("dcf")
     val rddRes = sc.hbase[Int](tableName, cfs)
-    println("############################################################")
-    println(rddRes.count())
 //    println(rddRes.take(5).mkString(","))
-//    rddRes.collect().foreach(println(_))
+    rddRes.collect().foreach(println(_))
+//    rddRes.collect()
     println("this is the end of this program!")
   }
 }

@@ -41,7 +41,7 @@ class HBaseConfig(defaults: Configuration) extends Serializable {
  * be able to read and write to the HBase cluster. It can be used
  * in tandem with a case class containing job configuration.
  */
-object HBaseConfig {
+object HBaseConfig{
   def apply(conf: Configuration): HBaseConfig = new HBaseConfig(conf)
 
   def apply(options: (String, String)*): HBaseConfig = {

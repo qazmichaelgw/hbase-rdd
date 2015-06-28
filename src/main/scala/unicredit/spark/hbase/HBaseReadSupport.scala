@@ -125,7 +125,7 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
       classOf[ImmutableBytesWritable], classOf[Result]) map {
         case (key, row) =>
           Bytes.toString(key.get) -> extract(data, row, reader)
-      }
+      } map (_.toString)
   }
 
   /**
@@ -145,7 +145,7 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
       classOf[ImmutableBytesWritable], classOf[Result]) map {
         case (key, row) =>
           Bytes.toString(key.get) -> extractRow(data, row, reader)
-      }
+      } map (_.toString)
   }
 
   /**
@@ -164,5 +164,5 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
       classOf[ImmutableBytesWritable], classOf[Result]) map {
         case (key, row) =>
           Bytes.toString(key.get) -> row
-      }
+      } map (_.toString)
 }
