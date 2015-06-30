@@ -6,7 +6,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{Scan, Result}
 import org.apache.hadoop.hbase.filter.FilterWrapper.FilterRowRetCode
-import org.apache.hadoop.hbase.filter.{BinaryComparator, RowFilter, CompareFilter, PrefixFilter}
+import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.{IdentityTableMapper, TableMapReduceUtil, TableInputFormat}
 import org.apache.hadoop.hbase.util.Bytes
@@ -94,9 +94,8 @@ object HBaseExample{
     }).saveAsTextFile("test.out")
 //    rddTest4.collect().foreach(println)
   *********************/
-    val filter = new RowFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new BinaryComparator(Bytes.toBytes("0020")))
-    val rddRead = sc.hbase[String](tableName, Set("dcf", "others"), filter)
-    //rddRead.collect().foreach(println)
+    val rddRead = sc.withStartRow("0020").withEndRow("0069").hbase[String](tableName, Set("dcf", "others"))
+//    rddRead.collect().foreach(println)
     println(s"this is the end of this program!'${rddRead.count()}'")
   }
 }

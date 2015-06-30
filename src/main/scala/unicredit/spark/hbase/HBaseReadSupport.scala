@@ -24,7 +24,7 @@ import org.apache.hadoop.hbase.client.{ Result, Scan }
 import org.apache.hadoop.hbase.mapreduce.{ TableInputFormat, IdentityTableMapper, TableMapReduceUtil }
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.filter.Filter
+import org.apache.hadoop.hbase.filter._
 
 import org.apache.hadoop.mapreduce.Job
 
@@ -67,6 +67,7 @@ trait HBaseReadSupport {
 final class HBaseSC(@transient sc: SparkContext) extends Serializable {
 //  private var startRow : Option[String] = None
 //  private var endRow : Option[String] = None
+  @transient val filterlist = new FilterList(FilterList.Operator.MUST_PASS_ALL)
   private def extract[A, B](data: Map[String, Set[String]], result: Result, read: Cell => B) =
     data map {
       case (cf, columns) =>
@@ -117,6 +118,7 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
 //      println("coming endRow here!")
 //      conf.set(TableInputFormat.SCAN_ROW_STOP, endRow.get)
 //    }
+    if (filterlist.getFilters.size() > 0) scan.setFilter(filterlist)
 
     val job = Job.getInstance(conf)
 
@@ -124,7 +126,10 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
     job.getConfiguration
   }
 
-  private def prepareScan(filter: Filter) = new Scan().setFilter(filter)
+  private def prepareScan(filter: Filter) = {
+    filterlist.addFilter(filter)
+    new Scan().setFilter(filterlist)
+  }
 
   /**
    * Provides an RDD of HBase rows. Here `data` is a map whose
@@ -315,4 +320,15 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
 //      endRow = Some(end_row)
 //      this
 //    }
+  def withStartRow(startRow: String) = {
+    val filter = new RowFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new BinaryComparator(Bytes.toBytes(startRow)))
+    filterlist.addFilter(filter)
+    this
+  }
+
+  def withEndRow(endRow: String) = {
+    val filter = new RowFilter(CompareFilter.CompareOp.LESS_OR_EQUAL, new BinaryComparator(Bytes.toBytes(endRow)))
+    filterlist.addFilter(filter)
+    this
+  }
 }
