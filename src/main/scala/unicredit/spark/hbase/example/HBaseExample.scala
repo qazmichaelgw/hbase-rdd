@@ -39,63 +39,36 @@ object HBaseExample{
     val cf = "dcf"
     val rdd: RDD[(String, Map[String, Int])] = sc.parallelize(1 to 100).map(i => ("%04d".format(i), Map(i.toString -> i)))
     val rddW2: RDD[(String, Map[String, String])] = sc.parallelize(1 to 30).map(i => ("%04d".format(i), HashMap("Col1" -> i.toString)))
-    val rddw3: RDD[(String, Map[String, Map[String, String]])] = sc.parallelize(1 to 60).map(i => ("%04d".format(i), Map("others" -> Map("Col2" -> (i*i).toString))))
+    val rddw3: RDD[(String, Map[String, Map[String, String]])] = sc.parallelize(1 to 60).map(i => ("%04d".format(i), Map("others" -> Map("Col2" -> (i*i).toString), "dcf" -> Map("Col3" -> (i*2).toString))))
     rddw3.toHBase(tableName)
     rddW2.toHBase(tableName, cf)
     rdd.collect().foreach(println)
     rdd.toHBase(tableName, cf)
-/***********************************
-    // read example
-    // (String, Map[String, Map[String, A]])
-    val cfs = Set("dcf")
-    val rddRes = sc.hbase[Int](tableName, cfs)
-      .map({ case (k, v) =>
-      val cf1 = v("dcf")
-      val col1 = cf1("col1")
 
-      List(k, col1) mkString "\t"
-    })
-//      .saveAsTextFile("test1-output")
-//    println(rddRes.take(5).mkString(","))
-//    rddRes.collect().foreach(println(_))
-//    rddRes.collect()
-    println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    // read test2
+    // read example
+    // case 1 one cf all columns
+    val families = Set("dcf")
+    val rddCase1 = sc.hbase[String](tableName, families)
+    rddCase1.collect().foreach(println)
+    println("\n##############################################################\n")
+    // case 2 multi-cf all columns
+    val cfs2 = Set("dcf", "others")
+    val rddCase2 = sc.hbase[String](tableName, cfs2)
+    rddCase2.collect().foreach(println)
+    println("\n##############################################################\n")
+    // case 3 nested map
     val columns = Map(
       "dcf" -> Set("Col1", "Col3"),
       "others" -> Set("Col2")
     )
-    val rddTest2 = sc.hbase[String](tableName, columns)
-      .map({ case (k, v) =>
-      val cf1 = v("dcf")
-      val col1 = cf1("col1")
-      val col2 = v("others")("col2")
-
-      List(k, col1, col2) mkString "\t"
-    })
-//      .saveAsTextFile("test2-output")
-//    rddTest2.collect().foreach(println)
-
-    // read test3
-    val rddTest3 = sc.withStartRow("0030").withEndRow("0040").hbase[String](tableName, columns)
-
-//    rddTest3.collect().foreach(println)
-
-    // filter test
-    val filter = new PrefixFilter(Bytes.toBytes("abc"))
-    val families = Set("dcf", "others")
-    val rddTest4 = sc.hbase[String](tableName, families, filter)
-      .map({ case (k, v) =>
-      val cf1 = v("dcf")
-      val col1 = cf1("col1")
-      val col2 = v("others")("col2")
-
-      List(k, col1, col2) mkString "\t"
-    }).saveAsTextFile("test.out")
-//    rddTest4.collect().foreach(println)
-  *********************/
-    val rddRead = sc.withStartRow("0020").withEndRow("0069").hbase[String](tableName, Set("dcf", "others"))
-//    rddRead.collect().foreach(println)
-    println(s"this is the end of this program!'${rddRead.count()}'")
+    val rddCase3 = sc.hbase[String](tableName, columns)
+    rddCase3.collect().foreach(println)
+    println("\n##############################################################\n")
+    // case 4 filter
+    val rddCase4 = sc.withStartRow("0020").withEndRow("0069").hbase[String](tableName, Set("dcf", "others"))
+//    rddReaad.saveAsTextFile("rowfilterTest")
+    rddCase4.collect().foreach(println)
+    println("\n##############################################################\n")
+    println(s"this is the end of this program!")
   }
 }

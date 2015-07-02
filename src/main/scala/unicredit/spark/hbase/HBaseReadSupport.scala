@@ -65,8 +65,6 @@ trait HBaseReadSupport {
 }
 
 final class HBaseSC(@transient sc: SparkContext) extends Serializable {
-//  private var startRow : Option[String] = None
-//  private var endRow : Option[String] = None
   @transient val filterlist = new FilterList(FilterList.Operator.MUST_PASS_ALL)
   private def extract[A, B](data: Map[String, Set[String]], result: Result, read: Cell => B) =
     data map {
@@ -85,11 +83,14 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
   private def extractRow[A, B](data: Set[String], result: Result, read: Cell => B) =
     result.listCells groupBy { cell =>
       new String(CellUtil.cloneFamily(cell))
-    } filterKeys data.contains mapValues { cells =>
-      cells map { cell =>
-        val column = new String(CellUtil.cloneQualifier(cell))
-        column -> read(cell)
-      } toMap
+    } filterKeys data.contains map {
+      // We cannot use mapValues here, because it returns a MapLike, which is not serializable,
+      // instead we need a (serializable) Map (see https://issues.scala-lang.org/browse/SI-7005)
+      case (k, cells) =>
+        (k, cells map { cell =>
+          val column = new String(CellUtil.cloneQualifier(cell))
+          column -> read(cell)
+        } toMap)
     }
 
   private def read[A](cell: Cell)(implicit reader: Reads[A]) = {
@@ -109,20 +110,11 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
     if (columns.isDefined)
       conf.set(TableInputFormat.SCAN_COLUMNS, columns.get)
 
-//    if(startRow.nonEmpty) {
-//      println(s"coming startRow here! '${startRow.get}'")
-//      conf.set(TableInputFormat.SCAN_ROW_START, startRow.get)
-//    }
-//
-//    if(endRow.nonEmpty) {
-//      println("coming endRow here!")
-//      conf.set(TableInputFormat.SCAN_ROW_STOP, endRow.get)
-//    }
     if (filterlist.getFilters.size() > 0) scan.setFilter(filterlist)
 
     val job = Job.getInstance(conf)
-
     TableMapReduceUtil.initTableMapperJob(table, scan, classOf[IdentityTableMapper], null, null, job)
+
     job.getConfiguration
   }
 
@@ -305,21 +297,6 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
    */
   def hbase(table: String, filter: Filter)(implicit config: HBaseConfig): RDD[(String, Result)] = hbase(table, prepareScan(filter))
 
-//    def withStartRow(start_row: String) = {
-//      require(start_row.nonEmpty, s"Invalid start row '$startRow'")
-//      require(this.startRow.isEmpty, "Start row has already been set")
-//
-//      startRow = Some(start_row)
-//      this
-//    }
-//
-//    def withEndRow(end_row: String) = {
-//      require(end_row.nonEmpty, s"Invalid start row '$end_row'")
-//      require(this.endRow.isEmpty, "Start row has already been set")
-//
-//      endRow = Some(end_row)
-//      this
-//    }
   def withStartRow(startRow: String) = {
     val filter = new RowFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new BinaryComparator(Bytes.toBytes(startRow)))
     filterlist.addFilter(filter)
