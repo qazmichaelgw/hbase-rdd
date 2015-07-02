@@ -40,10 +40,11 @@ object HBaseExample{
     val rdd: RDD[(String, Map[String, Int])] = sc.parallelize(1 to 100).map(i => ("%04d".format(i), Map(i.toString -> i)))
     val rddW2: RDD[(String, Map[String, String])] = sc.parallelize(1 to 30).map(i => ("%04d".format(i), HashMap("Col1" -> i.toString)))
     val rddw3: RDD[(String, Map[String, Map[String, String]])] = sc.parallelize(1 to 60).map(i => ("%04d".format(i), Map("others" -> Map("Col2" -> (i*i).toString), "dcf" -> Map("Col3" -> (i*2).toString))))
+    val rddW4: RDD[(String, Map[String, String])] = sc.parallelize(1 to 30).map(i => ("abc%04d".format(i), HashMap("Col1" -> i.toString)))
     rddw3.toHBase(tableName)
     rddW2.toHBase(tableName, cf)
-    rdd.collect().foreach(println)
     rdd.toHBase(tableName, cf)
+    rddW4.toHBase(tableName, cf)
 
     // read example
     // case 1 one cf all columns
@@ -68,6 +69,12 @@ object HBaseExample{
     val rddCase4 = sc.withStartRow("0020").withEndRow("0069").hbase[String](tableName, Set("dcf", "others"))
 //    rddReaad.saveAsTextFile("rowfilterTest")
     rddCase4.collect().foreach(println)
+    println("\n##############################################################\n")
+    // case 5 prefix filter
+    val filter = new PrefixFilter(Bytes.toBytes("abc"))
+    val rddCase5 = sc.hbase[String](tableName, Set("dcf", "others"), filter)
+    //    rddReaad.saveAsTextFile("rowfilterTest")
+    rddCase5.collect().foreach(println)
     println("\n##############################################################\n")
     println(s"this is the end of this program!")
   }
