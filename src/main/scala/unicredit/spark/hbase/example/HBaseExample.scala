@@ -45,6 +45,9 @@ object HBaseExample{
     rddW2.toHBase(tableName, cf)
     rdd.toHBase(tableName, cf)
     rddW4.toHBase(tableName, cf)
+    val headers: Seq[String] = Seq("c1", "c2", "c3")
+    val rddFixed: RDD[(String, Seq[String])] = sc.parallelize(1 to 30).map(i => ("fix%04d".format(i), Seq(i.toString, (i+1).toString, (i+2).toString)))
+    rddFixed.toHBase(tableName, cf, headers)
 
     // read example
     // case 1 one cf all columns
