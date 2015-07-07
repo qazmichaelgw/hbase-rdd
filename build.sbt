@@ -22,7 +22,8 @@ org.scalastyle.sbt.ScalastylePlugin.Settings
 
 resolvers ++= Seq(
   "Cloudera repos" at "https://repository.cloudera.com/artifactory/cloudera-repos",
-  "Cloudera releases" at "https://repository.cloudera.com/artifactory/libs-release"
+  "Cloudera releases" at "https://repository.cloudera.com/artifactory/libs-release",
+  "nexus" at "http://repos.6estates.com/nexus/content/groups/public"
 )
 
 libraryDependencies ++= Seq(
@@ -32,7 +33,8 @@ libraryDependencies ++= Seq(
   "org.apache.hbase" % "hbase-server" % "0.98.4-hadoop2" % "compile",
   "org.apache.hbase" % "hbase-hadoop-compat" % "0.98.9-hadoop2" exclude("javax.servlet", "servlet-api"),
   "org.apache.hbase" % "hbase-hadoop2-compat" % "0.98.9-hadoop2" exclude("javax.servlet", "servlet-api"),
-  "org.json4s" %% "json4s-jackson" % "3.2.11"
+  "org.json4s" %% "json4s-jackson" % "3.2.11",
+  "com.framework" % "framework-db-hbase" % "1.1.0-SNAPSHOT" % "compile"
 )
 
 publishMavenStyle := true

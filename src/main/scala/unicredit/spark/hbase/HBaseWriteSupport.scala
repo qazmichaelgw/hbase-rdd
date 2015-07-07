@@ -15,6 +15,7 @@
 
 package unicredit.spark.hbase
 
+import com.framework.db.hbase.mapping.{CellType, CustomSerializer}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.{ Put, HBaseAdmin }
 import org.apache.hadoop.hbase.{ HTableDescriptor, HColumnDescriptor, TableName }
@@ -37,57 +38,78 @@ import org.apache.spark.SparkContext._
  * to write to HBase sources.
  */
 trait HBaseWriteSupport {
+  @transient val cs = new CustomSerializer()
   type PutAdder[A] = (Put, Array[Byte], Array[Byte], A) => Unit
 
-  implicit def toHBaseRDDSimple[A](rdd: RDD[(String, Map[String, A])])(implicit writer: Writes[A]): HBaseRDDSimple[A] =
+  implicit def toHBaseRDDSimple[A](rdd: RDD[(Array[Byte], Map[String, A])])(implicit writer: Writes[A]): HBaseRDDSimple[A] =
     new HBaseRDDSimple(rdd, { (put: Put, cf: Array[Byte], q: Array[Byte], v: A) => put.add(cf, q, writer.write(v))})
 
-  implicit def toHBaseRDDSimpleT[A](rdd: RDD[(String, Map[String, (A, Long)])])(implicit writer: Writes[A]): HBaseRDDSimple[(A, Long)] =
+  implicit def toHBaseRDDSimpleT[A](rdd: RDD[(Array[Byte], Map[String, (A, Long)])])(implicit writer: Writes[A]): HBaseRDDSimple[(A, Long)] =
     new HBaseRDDSimple(rdd, { (put: Put, cf: Array[Byte], q: Array[Byte], v: (A, Long)) => put.add(cf, q, v._2, writer.write(v._1))})
 
-  implicit def toHBaseRDDFixed[A](rdd: RDD[(String, Seq[A])])(implicit writer: Writes[A]): HBaseRDDFixed[A] =
+  implicit def toHBaseRDDFixed[A](rdd: RDD[(Array[Byte], Seq[A])])(implicit writer: Writes[A]): HBaseRDDFixed[A] =
     new HBaseRDDFixed(rdd, { (put: Put, cf: Array[Byte], q: Array[Byte], v: A) => put.add(cf, q, writer.write(v))})
 
-  implicit def toHBaseRDDFixedT[A](rdd: RDD[(String, Seq[(A, Long)])])(implicit writer: Writes[A]): HBaseRDDFixed[(A, Long)] =
+  implicit def toHBaseRDDFixedT[A](rdd: RDD[(Array[Byte], Seq[(A, Long)])])(implicit writer: Writes[A]): HBaseRDDFixed[(A, Long)] =
     new HBaseRDDFixed(rdd, { (put: Put, cf: Array[Byte], q: Array[Byte], v: (A, Long)) => put.add(cf, q, v._2, writer.write(v._1))})
 
-  implicit def toHBaseRDD[A](rdd: RDD[(String, Map[String, Map[String, A]])])(implicit writer: Writes[A]): HBaseRDD[A] =
+  implicit def toHBaseRDD[A](rdd: RDD[(Array[Byte], Map[String, Map[String, A]])])(implicit writer: Writes[A]): HBaseRDD[A] =
     new HBaseRDD(rdd, { (put: Put, cf: Array[Byte], q: Array[Byte], v: A) => put.add(cf, q, writer.write(v))})
 
-  implicit def toHBaseRDDT[A](rdd: RDD[(String, Map[String, Map[String, (A, Long)]])])(implicit writer: Writes[A]): HBaseRDD[(A, Long)] =
+  implicit def toHBaseRDDT[A](rdd: RDD[(Array[Byte], Map[String, Map[String, (A, Long)]])])(implicit writer: Writes[A]): HBaseRDD[(A, Long)] =
     new HBaseRDD(rdd, { (put: Put, cf: Array[Byte], q: Array[Byte], v: (A, Long)) => put.add(cf, q, v._2, writer.write(v._1))})
 
   implicit val byteArrayWriter = new Writes[Array[Byte]] {
     def write(data: Array[Byte]) = data
   }
 
+  implicit val shortWriter = new Writes[Short] {
+    def write(data: Short) = {
+      Bytes.toBytes(CellType.Short.getValue) ++ Bytes.toBytes(data)
+    }
+  }
+
+  implicit val intWriter = new Writes[Int] {
+    def write(data: Int) = {
+      Bytes.toBytes(CellType.Integer.getValue) ++ Bytes.toBytes(data)
+    }
+  }
+
   implicit val stringWriter = new Writes[String] {
-    def write(data: String) = data.getBytes
+    def write(data: String) = {
+      Bytes.toBytes(CellType.String.getValue) ++ data.getBytes
+    }
   }
 
   implicit val jsonWriter = new Writes[JValue] {
     def write(data: JValue) = compact(data).getBytes
   }
 
-  implicit val intWriter = new Writes[Int] {
-    def write(data: Int) = {
-      var value = data
-      val b = new Array[scala.Byte](4)
-      for (i <- 3 to (1, -1)) {
-        b(i) = value.byteValue
-        value = value >>> 8
-      }
-      b(0) = value.byteValue
-      b
+  implicit val objWriter = new Writes[Object] {
+    def write(data: Object) = {
+      cs.obj2Byte(data)
     }
   }
+
+//  implicit val intWriter = new Writes[Int] {
+//    def write(data: Int) = {
+//      var value = data
+//      val b = new Array[scala.Byte](4)
+//      for (i <- 3 to (1, -1)) {
+//        b(i) = value.byteValue
+//        value = value >>> 8
+//      }
+//      b(0) = value.byteValue
+//      b
+//    }
+//  }
 }
 
 sealed abstract class HBaseWriteHelpers[A] {
-  protected def convert(id: String, values: Map[String, Map[String, A]], put: PutAdder[A]) = {
+  protected def convert(id: Array[Byte], values: Map[String, Map[String, A]], put: PutAdder[A]) = {
     def bytes(s: String) = Bytes.toBytes(s)
 
-    val p = new Put(bytes(id))
+    val p = new Put(id)
     var empty = true
     for {
       (family, content) <- values
@@ -118,7 +140,7 @@ sealed abstract class HBaseWriteHelpers[A] {
   }
 }
 
-final class HBaseRDDSimple[A](val rdd: RDD[(String, Map[String, A])], val put: PutAdder[A]) extends HBaseWriteHelpers[A] with Serializable {
+final class HBaseRDDSimple[A](val rdd: RDD[(Array[Byte], Map[String, A])], val put: PutAdder[A]) extends HBaseWriteHelpers[A] with Serializable {
   /**
    * Writes the underlying RDD to HBase.
    *
@@ -138,7 +160,7 @@ final class HBaseRDDSimple[A](val rdd: RDD[(String, Map[String, A])], val put: P
   }
 }
 
-final class HBaseRDDFixed[A](val rdd: RDD[(String, Seq[A])], val put: PutAdder[A]) extends HBaseWriteHelpers[A] with Serializable {
+final class HBaseRDDFixed[A](val rdd: RDD[(Array[Byte], Seq[A])], val put: PutAdder[A]) extends HBaseWriteHelpers[A] with Serializable {
   /**
    * Writes the underlying RDD to HBase.
    *
@@ -161,7 +183,7 @@ final class HBaseRDDFixed[A](val rdd: RDD[(String, Seq[A])], val put: PutAdder[A
   }
 }
 
-final class HBaseRDD[A](val rdd: RDD[(String, Map[String, Map[String, A]])], val put: PutAdder[A]) extends HBaseWriteHelpers[A] with Serializable {
+final class HBaseRDD[A](val rdd: RDD[(Array[Byte], Map[String, Map[String, A]])], val put: PutAdder[A]) extends HBaseWriteHelpers[A] with Serializable {
   /**
    * Writes the underlying RDD to HBase.
    *
