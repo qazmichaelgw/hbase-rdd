@@ -13,7 +13,7 @@
 * limitations under the License.
 */
 
-package unicredit.spark.hbase
+package spark.hbase
 
 import java.util.{ TreeSet, UUID }
 

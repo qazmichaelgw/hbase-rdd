@@ -13,7 +13,7 @@
 * limitations under the License.
 */
 
-package unicredit.spark.hbase
+package spark.hbase
 
 import com.framework.db.hbase.mapping.{CellType, CustomSerializer}
 import org.apache.hadoop.conf.Configuration
@@ -25,12 +25,11 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.hbase.util.Bytes
 
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
+//import org.json4s._
+//import org.json4s.jackson.JsonMethods._
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
-import unicredit.spark.hbase.HBaseUtils
 
 /**
  * Adds implicit methods to `RDD[(String, Map[String, A])]`,

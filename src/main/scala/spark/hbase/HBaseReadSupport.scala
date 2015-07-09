@@ -13,7 +13,7 @@
 * limitations under the License.
 */
 
-package unicredit.spark.hbase
+package spark.hbase
 
 import com.framework.db.hbase.mapping.CustomSerializer
 import org.apache.spark.rdd.RDD

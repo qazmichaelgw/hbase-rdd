@@ -1,4 +1,4 @@
-package unicredit.spark.hbase.example
+package spark.hbase.example
 
 import java.io.Serializable
 
@@ -14,7 +14,8 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
-import unicredit.spark.hbase._
+import spark.hbase.HBaseConfig
+import spark.hbase._
 
 import scala.collection.immutable.HashMap
 

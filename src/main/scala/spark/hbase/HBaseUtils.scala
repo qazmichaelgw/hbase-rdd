@@ -1,4 +1,4 @@
-package unicredit.spark.hbase
+package spark.hbase
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -9,7 +9,7 @@ import org.apache.hadoop.hbase.client.{Delete, HTable, HBaseAdmin}
 import org.apache.spark.rdd.RDD
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.hbase.HBaseConfiguration
-import unicredit.spark.hbase._
+import spark.hbase._
 
 /**
  * Utilities for dealing with HBase tables
