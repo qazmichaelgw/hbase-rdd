@@ -5,13 +5,75 @@ import java.util.Calendar
 
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HColumnDescriptor, TableName, HTableDescriptor}
-import org.apache.hadoop.hbase.client.HBaseAdmin
+import org.apache.hadoop.hbase.client.{Delete, HTable, HBaseAdmin}
 import org.apache.spark.rdd.RDD
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.hbase.HBaseConfiguration
+import unicredit.spark.hbase._
 
 /**
  * Utilities for dealing with HBase tables
  */
 trait HBaseUtils {
+  val DEFAULT_CONF_PATH = "resources/hbase-site.xml"
+  val DEFAULT_CONF = new HBaseConfiguration
+  DEFAULT_CONF.addResource(new Path(DEFAULT_CONF_PATH))
+
+  def getConf(confPath: String = null): HBaseConfiguration = {
+    if (confPath == null) {
+      DEFAULT_CONF
+    } else {
+      val conf =  new HBaseConfiguration
+      conf.addResource(new Path(confPath))
+      conf
+    }
+  }
+
+  def toBytes(value: Any): Array[Byte] = {
+    if (value == null)
+      return null
+    if (value.isInstanceOf[Int])
+      return Bytes.toBytes(value.asInstanceOf[Int])
+    if (value.isInstanceOf[Long])
+      return Bytes.toBytes(value.asInstanceOf[Long])
+    if (value.isInstanceOf[Float])
+      return Bytes.toBytes(value.asInstanceOf[Float])
+    if (value.isInstanceOf[Double])
+      return Bytes.toBytes(value.asInstanceOf[Double])
+
+    return Bytes.toBytes(value.toString)
+  }
+
+  def drop(tableName: String)(implicit config: HBaseConfig): Unit = {
+    val hAdmin = new HBaseAdmin(config.get)
+    hAdmin.disableTable(tableName)
+    hAdmin.deleteTable(tableName)
+  }
+
+  def disable(tableName: String)(implicit config: HBaseConfig): Unit = {
+    val hAdmin = new HBaseAdmin(config.get)
+    hAdmin.disableTable(tableName)
+  }
+
+
+  def enable(tableName: String)(implicit config: HBaseConfig): Unit = {
+    val hAdmin = new HBaseAdmin(config.get)
+    hAdmin.enableTable(tableName)
+  }
+
+  def recreate(tableName: String)(implicit config: HBaseConfig): Unit = {
+    val hAdmin = new HBaseAdmin(config.get)
+    val descriptor = hAdmin.getTableDescriptor(Bytes.toBytes(tableName))
+    drop(tableName)
+    hAdmin.createTable(descriptor)
+  }
+
+  def deleteColumn(tableName: String, familyName: String)(implicit config: HBaseConfig): Unit = {
+    val hAdmin = new HBaseAdmin(config.get)
+    hAdmin.disableTable(tableName)
+    hAdmin.deleteColumn(tableName, familyName)
+    hAdmin.enableTable(tableName)
+  }
   /**
    * Checks if table exists, and requires that it contains the desired column family
    *

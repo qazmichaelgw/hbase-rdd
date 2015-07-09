@@ -38,8 +38,10 @@ object HBaseExample{
     // (String, Map[String, String]): (rowID, Map[Columns, Values])
     val tableName = "ds_163_blog"
     val cf = "dcf"
-    val rdd: RDD[(Array[Byte], Map[String, Map[String, String]])] = sc.parallelize(1 to 60).map(i => (Bytes.toBytes("%04d".format(i)), Map("others" -> Map("Col2" -> (i*i).toString), "dcf" -> Map("Col3" -> (i*2).toString))))
+    val rdd: RDD[(Any, Map[String, Map[String, String]])] = sc.parallelize(1 to 60).map(i => (i*1000, Map("others" -> Map("Col2" -> i.toString), "dcf" -> Map("Col3" -> (i*2).toString))))
     rdd.toHBase(tableName)
+    val rdd1: RDD[(Any, Map[String, Int])] = sc.parallelize(1 to 100).map(i => ("Int%04d".format(i), Map(i.toString -> i)))
+    rdd1.toHBase(tableName, cf)
 //    val tableName = "tv_raw_note_suning"
     /*
     val cf = "dcf"
@@ -87,9 +89,31 @@ object HBaseExample{
 //    println("\n##############################################################\n")
 
 
-    val families = Set("dcf")
+    val families = Set("dcf", "others")
     val rddCase1 = sc.hbase[Object](tableName, families)
-    rddCase1.collect().foreach(println)
+    rddCase1.collect().foreach {
+      case (k, v) => println(Bytes.toString(k) + " : " + v)
+    }
+
+    println("\n##############################################################\n")
+
+    val rks = List("Int%04d".format(2), "Int%04d".format(3))
+    val rddTest = sc.query(tableName, rks)
+    rddTest.collect().foreach {
+      case (k, v) => println(Bytes.toString(k) + " : " + v)
+    }
+    println("\n##############################################################\n")
+    val rddTest1 = sc.queryWithFamily(tableName, rks)
+    rddTest1.collect().foreach {
+      case (k, v) => println(Bytes.toString(k) + " : " + v)
+    }
+
+    sc.delete(tableName, "Int%04d".format(2))
+    val rddAfter1 = sc.hbase[Object](tableName, families)
+    rddAfter1.collect().foreach {
+      case (k, v) => println(Bytes.toString(k) + " : " + v)
+    }
+    println("\n##############################################################\n")
     println(s"this is the end of this program!")
   }
 }

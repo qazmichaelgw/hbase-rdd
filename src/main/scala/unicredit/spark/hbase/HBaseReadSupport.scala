@@ -19,9 +19,10 @@ import com.framework.db.hbase.mapping.CustomSerializer
 import org.apache.spark.rdd.RDD
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.Buffer
 
 import org.apache.hadoop.hbase.{ Cell, CellUtil }
-import org.apache.hadoop.hbase.client.{ Result, Scan }
+import org.apache.hadoop.hbase.client.{HTable, Delete, Result, Scan}
 import org.apache.hadoop.hbase.mapreduce.{ TableInputFormat, IdentityTableMapper, TableMapReduceUtil }
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.util.Bytes
@@ -38,20 +39,20 @@ import org.json4s.jackson.JsonMethods._
  * Adds implicit methods to SparkContext to read
  * from HBase sources.
  */
-trait HBaseReadSupport {
+trait HBaseReadSupport extends HBaseUtils{
   implicit def toHBaseSC(sc: SparkContext): HBaseSC = new HBaseSC(sc)
 
   implicit val byteArrayReader = new Reads[Array[Byte]] {
     def read(data: Array[Byte]) = data
   }
-
-  implicit val stringReader = new Reads[String] {
-    def read(data: Array[Byte]) = new String(data)
-  }
-
-  implicit val jsonReader = new Reads[JValue] {
-    def read(data: Array[Byte]) = parse(new String(data))
-  }
+//
+//  implicit val stringReader = new Reads[String] {
+//    def read(data: Array[Byte]) = new String(data)
+//  }
+//
+//  implicit val jsonReader = new Reads[JValue] {
+//    def read(data: Array[Byte]) = parse(new String(data))
+//  }
 
   implicit val objReader = new Reads[Object] {
     def read(data: Array[Byte]) = {
@@ -59,17 +60,17 @@ trait HBaseReadSupport {
       s.byte2Obj(data)
     }
   }
-
-  implicit val intReader = new Reads[Int] {
-    def read(data: Array[Byte]) = {
-      var n = 0
-      for(byte <- data) {
-        n = (n << 8)
-        n ^= byte & 0xFF
-      }
-      n
-    }
-  }
+//
+//  implicit val intReader = new Reads[Int] {
+//    def read(data: Array[Byte]) = {
+//      var n = 0
+//      for(byte <- data) {
+//        n = (n << 8)
+//        n ^= byte & 0xFF
+//      }
+//      n
+//    }
+//  }
 }
 
 final class HBaseSC(@transient sc: SparkContext) extends Serializable {
@@ -310,6 +311,58 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
    */
   def hbase(table: String, filter: Filter)(implicit config: HBaseConfig): RDD[(Array[Byte], Result)] = hbase(table, prepareScan(filter))
 
+  /** *** define API compatible with HBaseClient **********
+    *
+    *
+    *
+    */
+  private def extractQueryRowWithFamily[A, B](result: Result, read: Cell => B) =
+    result.listCells groupBy { cell =>
+      new String(CellUtil.cloneFamily(cell))
+    } map {
+      case (k, cells) =>
+          (k , (cells map { cell =>
+            val column = new String(CellUtil.cloneQualifier(cell))
+            column -> read(cell)
+          } toMap))
+    }
+
+  private def extractQueryRow[A, B](result: Result, read: Cell => B) =
+    result.listCells groupBy { cell =>
+      new String(CellUtil.cloneFamily(cell))
+    } map {
+      case (k, cells) =>
+        (cells map { cell =>
+          val column = new String(CellUtil.cloneQualifier(cell))
+          column -> read(cell)
+        } toMap)
+    }
+
+  def query(table: String, rks: List[Any])(implicit config: HBaseConfig)={
+    hbaseQuery[Object](table, rks, new Scan, false)
+  }
+
+  def queryWithFamily(table: String, rks: List[Any])(implicit config: HBaseConfig)={
+    hbaseQuery[Object](table, rks, new Scan, true)
+  }
+
+  def hbaseQuery[A](table: String, rks: List[Any], scan: Scan, withFamily: Boolean)(implicit config: HBaseConfig, reader: Reads[A]) = {
+    hbaseRaw(table, scan) map {
+//      if rksStr.contains
+      case (key, row) =>
+        if (withFamily) {
+            key.get -> extractQueryRowWithFamily(row, read[A])
+        }else {
+            key.get -> extractQueryRow(row, read[A])
+        }
+    }
+  }
+
+  protected def hbaseRaw(table: String, scan: Scan)(implicit config: HBaseConfig) = {
+    sc.newAPIHadoopRDD(makeConf(config, table, None, scan), classOf[TableInputFormat],
+      classOf[ImmutableBytesWritable], classOf[Result])
+  }
+
   def withStartRow(startRow: String) = {
     val filter = new RowFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new BinaryComparator(Bytes.toBytes(startRow)))
     filterlist.addFilter(filter)
@@ -320,5 +373,27 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
     val filter = new RowFilter(CompareFilter.CompareOp.LESS_OR_EQUAL, new BinaryComparator(Bytes.toBytes(endRow)))
     filterlist.addFilter(filter)
     this
+  }
+
+  def delete(tableName: String, row: Any)(implicit config: HBaseConfig): Unit = {
+    val table = new HTable(config.get, tableName)
+    val delete = new Delete(toBytes(row))
+    table.delete(delete)
+  }
+
+
+  def delete(tableName: String, row: Any, family: Any)(implicit config: HBaseConfig): Unit =  {
+    val table = new HTable(config.get, tableName)
+    val delete = new Delete(toBytes(row))
+    delete.deleteFamily(toBytes(family))
+    table.delete(delete)
+  }
+
+
+  def delete(tableName: String, row: Any, family: Any, qualifier: Any)(implicit config: HBaseConfig): Unit =  {
+    val table = new HTable(config.get, tableName)
+    val delete = new Delete(toBytes(row))
+    delete.deleteColumn(toBytes(family), toBytes(qualifier))
+    table.delete(delete)
   }
 }
