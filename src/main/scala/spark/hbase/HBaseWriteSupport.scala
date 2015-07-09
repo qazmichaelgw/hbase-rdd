@@ -25,9 +25,6 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.hbase.util.Bytes
 
-//import org.json4s._
-//import org.json4s.jackson.JsonMethods._
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
 
@@ -80,10 +77,6 @@ trait HBaseWriteSupport{
       Array(CellType.String.getValue, 0).map(_.toByte) ++ toBytes(data)
     }
   }
-
-//  implicit val jsonWriter = new Writes[JValue] {
-//    def write(data: JValue) = compact(data).getBytes
-//  }
 
 //  implicit val objWriter = new Writes[Object] {
 //    def write(data: Object) = {

@@ -30,10 +30,6 @@ object HBaseExample{
     val sparkConf = new SparkConf().setAppName("SparkWithHBase")
     sparkConf.setMaster(addr)
     val sc = new SparkContext(sparkConf)
-    val conf = HBaseConfiguration.create()
-    // Add local HBase conf
-    conf.addResource(new Path("file:///etc/hbase/conf/hbase-site.xml"))
-    implicit val config = HBaseConfig(conf)
 
     // write example
     // (String, Map[String, String]): (rowID, Map[Columns, Values])
@@ -43,21 +39,18 @@ object HBaseExample{
     rdd.toHBase(tableName)
     val rdd1: RDD[(Any, Map[String, Int])] = sc.parallelize(1 to 100).map(i => ("Int%04d".format(i), Map(i.toString -> i)))
     rdd1.toHBase(tableName, cf)
-//    val tableName = "tv_raw_note_suning"
-    /*
-    val cf = "dcf"
-    val rdd: RDD[(String, Map[String, Int])] = sc.parallelize(1 to 100).map(i => ("%04d".format(i), Map(i.toString -> i)))
-    val rddW2: RDD[(String, Map[String, String])] = sc.parallelize(1 to 30).map(i => ("%04d".format(i), HashMap("Col1" -> i.toString)))
-    val rddw3: RDD[(String, Map[String, Map[String, String]])] = sc.parallelize(1 to 60).map(i => ("%04d".format(i), Map("others" -> Map("Col2" -> (i*i).toString), "dcf" -> Map("Col3" -> (i*2).toString))))
-    val rddW4: RDD[(String, Map[String, String])] = sc.parallelize(1 to 30).map(i => ("abc%04d".format(i), HashMap("Col1" -> i.toString)))
+    val rddw1: RDD[(Any, Map[String, Int])] = sc.parallelize(1 to 100).map(i => ("%04d".format(i), Map(i.toString -> i)))
+    val rddW2: RDD[(Any, Map[String, String])] = sc.parallelize(1 to 30).map(i => ("%04d".format(i), HashMap("Col1" -> i.toString)))
+    val rddw3: RDD[(Any, Map[String, Map[String, String]])] = sc.parallelize(1 to 60).map(i => ("%04d".format(i), Map("others" -> Map("Col2" -> (i*i).toString), "dcf" -> Map("Col3" -> (i*2).toString))))
+    val rddW4: RDD[(Any, Map[String, String])] = sc.parallelize(1 to 30).map(i => ("abc%04d".format(i), HashMap("Col1" -> i.toString)))
     rddw3.toHBase(tableName)
     rddW2.toHBase(tableName, cf)
-    rdd.toHBase(tableName, cf)
+    rddw1.toHBase(tableName, cf)
     rddW4.toHBase(tableName, cf)
     val headers: Seq[String] = Seq("c1", "c2", "c3")
-    val rddFixed: RDD[(String, Seq[String])] = sc.parallelize(1 to 30).map(i => ("fix%04d".format(i), Seq(i.toString, (i+1).toString, (i+2).toString)))
+    val rddFixed: RDD[(Any, Seq[String])] = sc.parallelize(1 to 30).map(i => ("fix%04d".format(i), Seq(i.toString, (i+1).toString, (i+2).toString)))
     rddFixed.toHBase(tableName, cf, headers)
- */
+
     // read example
     // case 1 one cf all columns
 //    val families = Set("dcf")
@@ -89,7 +82,7 @@ object HBaseExample{
 //    rddCase5.collect().foreach(println)
 //    println("\n##############################################################\n")
 
-
+    //    val tableName = "tv_raw_note_suning"
     val families = Set("dcf", "others")
     val rddCase1 = sc.hbase[Object](tableName, families)
     rddCase1.collect().foreach {
@@ -100,6 +93,7 @@ object HBaseExample{
 
     val rks = List("Int%04d".format(2), "Int%04d".format(3))
     val rddTest = sc.query(tableName, rks)
+
     rddTest.collect().foreach {
       case (k, v) => println(Bytes.toString(k) + " : " + v)
     }
@@ -109,9 +103,18 @@ object HBaseExample{
       case (k, v) => println(Bytes.toString(k) + " : " + v)
     }
 
+    // delete test!
     sc.delete(tableName, "Int%04d".format(2))
     val rddAfter1 = sc.hbase[Object](tableName, families)
     rddAfter1.collect().foreach {
+      case (k, v) => println(Bytes.toString(k) + " : " + v)
+    }
+    println("\n##############################################################\n")
+
+    // case 5 prefix filter
+    val filter = new PrefixFilter(Bytes.toBytes("abc"))
+    val rddCase5 = sc.hbase[Object](tableName, Set("dcf", "others"), filter)
+    rddCase5.collect().foreach {
       case (k, v) => println(Bytes.toString(k) + " : " + v)
     }
     println("\n##############################################################\n")

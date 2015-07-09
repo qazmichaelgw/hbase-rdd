@@ -15,19 +15,11 @@ import spark.hbase._
  * Utilities for dealing with HBase tables
  */
 trait HBaseUtils {
-  val DEFAULT_CONF_PATH = "resources/hbase-site.xml"
-  val DEFAULT_CONF = new HBaseConfiguration
+  val DEFAULT_CONF_PATH = "file:///etc/hbase/conf/hbase-site.xml"
+  val DEFAULT_CONF = HBaseConfiguration.create()
   DEFAULT_CONF.addResource(new Path(DEFAULT_CONF_PATH))
 
-  def getConf(confPath: String = null): HBaseConfiguration = {
-    if (confPath == null) {
-      DEFAULT_CONF
-    } else {
-      val conf =  new HBaseConfiguration
-      conf.addResource(new Path(confPath))
-      conf
-    }
-  }
+  implicit val config = HBaseConfig(DEFAULT_CONF)
 
   def toBytes(value: Any): Array[Byte] = {
     if (value == null)

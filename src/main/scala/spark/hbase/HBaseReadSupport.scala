@@ -32,9 +32,6 @@ import org.apache.hadoop.mapreduce.Job
 
 import org.apache.spark._
 
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
-
 /**
  * Adds implicit methods to SparkContext to read
  * from HBase sources.
@@ -48,10 +45,6 @@ trait HBaseReadSupport extends HBaseUtils{
 //
 //  implicit val stringReader = new Reads[String] {
 //    def read(data: Array[Byte]) = new String(data)
-//  }
-//
-//  implicit val jsonReader = new Reads[JValue] {
-//    def read(data: Array[Byte]) = parse(new String(data))
 //  }
 
   implicit val objReader = new Reads[Object] {
@@ -339,16 +332,19 @@ final class HBaseSC(@transient sc: SparkContext) extends Serializable {
     }
 
   def query(table: String, rks: List[Any])(implicit config: HBaseConfig)={
-    hbaseQuery[Object](table, rks, new Scan, false)
+    hbaseQuery[Object](table, rks, new Scan, false).filter{ case (k, v) => inList(k, rks) != None }
   }
 
   def queryWithFamily(table: String, rks: List[Any])(implicit config: HBaseConfig)={
-    hbaseQuery[Object](table, rks, new Scan, true)
+    hbaseQuery[Object](table, rks, new Scan, true).filter{ case (k, v) => inList(k, rks) != None }
+  }
+
+  private def inList(key:Array[Byte], list: List[Any]): Option[Any] = {
+    list find { e => toBytes(e).corresponds(key){_ == _} }
   }
 
   def hbaseQuery[A](table: String, rks: List[Any], scan: Scan, withFamily: Boolean)(implicit config: HBaseConfig, reader: Reads[A]) = {
-    hbaseRaw(table, scan) map {
-//      if rksStr.contains
+    hbaseRaw(table, scan) map{
       case (key, row) =>
         if (withFamily) {
             key.get -> extractQueryRowWithFamily(row, read[A])
